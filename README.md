@@ -1,68 +1,68 @@
 # TodoList Project
 
-## Съдържание
+## Table of Contents
 
-1. [Общ Преглед](#общ-преглед)
-2. [Архитектура](#архитектура)
-3. [Технологичен Стек](#технологичен-стек)
-4. [Компоненти на Системата](#компоненти-на-системата)
-5. [Инсталация и Настройка](#инсталация-и-настройка)
-6. [API Документация](#api-документация)
-7. [База Данни](#база-данни)
-8. [Сигурност и Автентикация](#сигурност-и-автентикация)
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Technology Stack](#technology-stack)
+4. [System Components](#system-components)
+5. [Installation and Setup](#installation-and-setup)
+6. [API Documentation](#api-documentation)
+7. [Database](#database)
+8. [Security and Authentication](#security-and-authentication)
 9. [Deployment](#deployment)
 10. [CI/CD Pipeline](#cicd-pipeline)
-11. [Използване](#използване)
+11. [Usage](#usage)
 12. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Общ Преглед
+## Overview
 
-**TodoList Project** е модерно микросервизно приложение за управление на задачи (Todo Lists), вдъхновено от Todoist. Проектът имплементира пълноценна система за управление на задачи с акцент върху сигурност, скалируемост и съвременни DevOps практики.
+**TodoList Project** is a modern microservices application for task management (Todo Lists), inspired by Todoist. The project implements a full-featured task management system with emphasis on security, scalability, and modern DevOps practices.
 
-### Основни Характеристики
+### Key Features
 
-- 🔐 **Сигурна автентикация** чрез GitHub OAuth 2.0
-- 🎫 **JWT базирана авторизация** с refresh token механизъм
-- 👥 **Role-based access control (RBAC)** - Reader, Writer, Admin роли
-- 📝 **REST API** за основни CRUD операции
-- 🔄 **GraphQL API** като facade за по-гъвкави заявки
-- 🗄️ **PostgreSQL** база данни с миграции
-- 🌐 **SAP UI5** базиран потребителски интерфейс
-- ☸️ **Kubernetes deployment** с Istio service mesh
-- 🔄 **CI/CD pipeline** с GitHub Actions
-- 🐳 **Docker containerization** на всички компоненти
+- **Secure authentication** via GitHub OAuth 2.0
+- **JWT-based authorization** with refresh token mechanism
+- **Role-based access control (RBAC)** - Reader, Writer, Admin roles
+- **REST API** for core CRUD operations
+- **GraphQL API** as a facade for more flexible queries
+- **PostgreSQL** database with migrations
+- **SAP UI5** based user interface
+- **Kubernetes deployment** with Istio service mesh
+- **CI/CD pipeline** with GitHub Actions
+- **Docker containerization** for all components
 
-### Бизнес Функционалности
+### Business Features
 
-1. **Управление на Todo Списъци**
-    - Създаване, редактиране и изтриване на списъци
-    - Споделяне на списъци с други потребители
-    - Три нива на видимост: Private, Shared, Public
-    - Добавяне на тагове към списъци
+1. **Todo List Management**
+    - Create, edit, and delete lists
+    - Share lists with other users
+    - Three visibility levels: Private, Shared, Public
+    - Add tags to lists
 
-2. **Управление на Задачи (Todos)**
-    - Създаване, редактиране и изтриване на задачи
-    - Маркиране на задачи като завършени
-    - Приоритети: Low, Medium, High
-    - Срокове и начални дати
-    - Възлагане на задачи на потребители
-    - Тагове за организация
+2. **Task Management (Todos)**
+    - Create, edit, and delete tasks
+    - Mark tasks as completed
+    - Priorities: Low, Medium, High
+    - Due dates and start dates
+    - Assign tasks to users
+    - Tags for organization
 
-3. **Колаборация**
-    - Споделяне на списъци с колеги
-    - Три нива на достъп: Reader, Writer, Admin
-    - Система за покани и одобрение
-    - Управление на колаборатори
+3. **Collaboration**
+    - Share lists with colleagues
+    - Three access levels: Reader, Writer, Admin
+    - Invitation and approval system
+    - Collaborator management
 
 ---
 
-## Архитектура
+## Architecture
 
-### Микросервизна Архитектура
+### Microservices Architecture
 
-Проектът следва микросервизен архитектурен модел с ясно разделение на отговорностите:
+The project follows a microservices architectural pattern with clear separation of responsibilities:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -125,7 +125,7 @@
                                   └──────────┘
 ```
 
-### Слоева Архитектура (REST Service)
+### Layered Architecture (REST Service)
 
 ```
 ┌─────────────────────────────────────────┐
@@ -161,12 +161,12 @@
 
 ---
 
-## Технологичен Стек
+## Technology Stack
 
 ### Backend
 
 #### REST API Service
-- **Език**: Go 1.21+
+- **Language**: Go 1.21+
 - **Web Framework**: Gin
 - **Database Driver**: pgx (PostgreSQL)
 - **Authentication**: OAuth2, JWT
@@ -174,7 +174,7 @@
 - **Logging**: Structured logging
 
 #### GraphQL Service
-- **Език**: Go 1.21+
+- **Language**: Go 1.21+
 - **GraphQL Framework**: gqlgen
 - **HTTP Client**: Standard Go http client
 - **Schema**: GraphQL SDL (Schema Definition Language)
@@ -210,13 +210,13 @@
 
 ---
 
-## Компоненти на Системата
+## System Components
 
 ### 1. REST API Service (`todoservice`)
 
-**Местоположение**: `/todoservice`
+**Location**: `/todoservice`
 
-#### Структура
+#### Structure
 
 ```
 todoservice/
@@ -241,7 +241,7 @@ todoservice/
 └── go.mod
 ```
 
-#### Основни Функции
+#### Core Functions
 
 **Authentication & Authorization**
 - GitHub OAuth2 login flow
@@ -251,13 +251,13 @@ todoservice/
 - Tenant isolation
 
 **Lists Management**
-- CRUD операции за списъци
+- CRUD operations for lists
 - Visibility control (private/shared/public)
 - Owner management
 - Tag support
 
 **Todos Management**
-- CRUD операции за задачи
+- CRUD operations for tasks
 - Priority management
 - Due dates and start dates
 - Task assignment
@@ -309,9 +309,9 @@ PUT    /users/:id                # Update user
 
 ### 2. GraphQL Service (`graphqlServer`)
 
-**Местоположение**: `/graphqlServer`
+**Location**: `/graphqlServer`
 
-#### Структура
+#### Structure
 
 ```
 graphqlServer/
@@ -433,7 +433,7 @@ type Mutation {
 
 #### Custom Directives
 
-**@validate** - Валидация на входни данни
+**@validate** - Input data validation
 ```graphql
 directive @validate(type: String!) on INPUT_FIELD_DEFINITION
 
@@ -446,9 +446,9 @@ input CreateUserInput {
 
 ### 3. UI Service (`ui`)
 
-**Местоположение**: `/ui`
+**Location**: `/ui`
 
-#### Структура
+#### Structure
 
 ```
 ui/
@@ -475,7 +475,7 @@ ui/
 └── package.json
 ```
 
-#### Функционалности
+#### Features
 
 **Login Page**
 - GitHub OAuth initiation
@@ -483,20 +483,20 @@ ui/
 - Redirect after login
 
 **Lists View**
-- Списък на всички списъци
-- Филтриране по visibility
-- Създаване на нов списък
-- Редактиране на списък
-- Изтриване на списък
-- Покани на колаборатори
+- List of all lists
+- Filter by visibility
+- Create new list
+- Edit list
+- Delete list
+- Invite collaborators
 
 **Todo Details View**
-- Списък на задачи в селектиран списък
-- Създаване на нова задача
-- Редактиране на задача
-- Маркиране като завършена
-- Изтриване на задача
-- Възлагане на задача
+- List of tasks in selected list
+- Create new task
+- Edit task
+- Mark as completed
+- Delete task
+- Assign task
 
 **Settings View**
 - User profile information
@@ -505,7 +505,7 @@ ui/
 
 ### 4. Database (`migrations`)
 
-**Местоположение**: `/migrations`
+**Location**: `/migrations`
 
 #### Schema Overview
 
@@ -577,7 +577,7 @@ CREATE TABLE refresh_tokens (
 
 #### Migrations
 
-Проектът използва golang-migrate за управление на database миграции:
+The project uses golang-migrate for database migration management:
 
 ```
 migrations/
@@ -599,11 +599,11 @@ migrations/
 
 ---
 
-## Инсталация и Настройка
+## Installation and Setup
 
 ### Prerequisites
 
-Преди да започнете, уверете се че имате инсталирани:
+Before starting, ensure you have the following installed:
 
 - **Docker** (v20.10+)
 - **k3d** (v5.0+)
@@ -611,39 +611,39 @@ migrations/
 - **Helm** (v3.0+)
 - **istioctl** (v1.20+)
 
-### Стъпка 1: Клониране на Repository
+### Step 1: Clone the Repository
 
 ```bash
 git clone <your-repo-url>
 cd Todolist
 ```
 
-### Стъпка 2: Създаване на Configuration File
+### Step 2: Create Configuration File
 
 ```bash
 cp config.example.yaml config.yaml
 ```
 
-### Стъпка 3: Настройка на GitHub OAuth Application
+### Step 3: Set Up GitHub OAuth Application
 
-1. Отидете на [GitHub Developer Settings](https://github.com/settings/developers)
-2. Кликнете **"New OAuth App"**
-3. Попълнете детайлите:
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **"New OAuth App"**
+3. Fill in the details:
     - **Application name**: TodoList App
     - **Homepage URL**: `http://localhost:8000`
     - **Authorization callback URL**: `http://localhost:8000/login/github/callback`
-4. Копирайте **Client ID** и **Client Secret**
+4. Copy the **Client ID** and **Client Secret**
 
-### Стъпка 4: Генериране на Security Keys
+### Step 4: Generate Security Keys
 
-Използвайте скрипта:
+Use the script:
 
 ```bash
 chmod +x generate-keys.sh
 ./generate-keys.sh
 ```
 
-Или ръчно:
+Or manually:
 
 ```bash
 # OAuth2 State
@@ -653,9 +653,9 @@ openssl rand -base64 32
 openssl rand -base64 32
 ```
 
-### Стъпка 5: Конфигуриране на config.yaml
+### Step 5: Configure config.yaml
 
-Редактирайте `config.yaml`:
+Edit `config.yaml`:
 
 ```yaml
 github:
@@ -674,43 +674,43 @@ database:
   password: "YOUR_SECURE_PASSWORD"
 ```
 
-### Стъпка 6: Стартиране на Setup Script
+### Step 6: Run the Setup Script
 
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-Скриптът ще:
-- Създаде k3d Kubernetes cluster
-- Инсталира Istio service mesh
-- Създаде необходимите namespaces
-- Deploy-не всички компоненти
-- Изпълни database миграции
+The script will:
+- Create a k3d Kubernetes cluster
+- Install Istio service mesh
+- Create the necessary namespaces
+- Deploy all components
+- Run database migrations
 
-### Стъпка 7: Проверка на Deployment
+### Step 7: Verify Deployment
 
 ```bash
-# Проверка на pods
+# Check pods
 kubectl get pods -n todoapp-system
 
-# Проверка на services
+# Check services
 kubectl get svc -n todoapp-system
 
-# Проверка на Istio gateway
+# Check Istio gateway
 kubectl get gateway -n todoapp-system
 ```
 
-### Стъпка 8: Достъп до Приложението
+### Step 8: Access the Application
 
-Отворете браузър на:
+Open your browser at:
 ```
 http://localhost:8000
 ```
 
 ---
 
-## API Документация
+## API Documentation
 
 ### REST API
 
@@ -723,7 +723,7 @@ http://localhost:8000
 GET /login/github
 ```
 
-Пренасочва към GitHub за authentication.
+Redirects to GitHub for authentication.
 
 **2. OAuth Callback**
 ```http
@@ -1044,7 +1044,7 @@ mutation AddListAccess($input: GrantListAccessInput!) {
 
 ---
 
-## База Данни
+## Database
 
 ### Entity Relationship Diagram
 
@@ -1110,7 +1110,7 @@ mutation AddListAccess($input: GrantListAccessInput!) {
 └─────────────────────┘
 ```
 
-### Индекси
+### Indexes
 
 ```sql
 -- Lists
@@ -1161,7 +1161,7 @@ CREATE TRIGGER update_todos_updated_at
 
 ---
 
-## Сигурност и Автентикация
+## Security and Authentication
 
 ### OAuth 2.0 Flow
 
@@ -1232,46 +1232,46 @@ CREATE TRIGGER update_todos_updated_at
 
 ### Role-Based Access Control (RBAC)
 
-#### Роли и Права
+#### Roles and Permissions
 
 **Reader**
-- ✅ Може да чете списъци, към които има достъп
-- ✅ Може да чете задачи в списъците
-- ❌ Не може да променя списъци или задачи
-- ❌ Не може да създава нови списъци
+- Can read lists they have access to
+- Can read tasks in lists
+- Cannot modify lists or tasks
+- Cannot create new lists
 
 **Writer**
-- ✅ Всички права на Reader
-- ✅ Може да създава нови списъци
-- ✅ Може да променя и изтрива задачи в списъци, към които има достъп
-- ✅ Може да добавя потребители към списъци, които е създал
-- ❌ Не може да променя списъци, които не притежава
+- All Reader permissions
+- Can create new lists
+- Can modify and delete tasks in lists they have access to
+- Can add users to lists they created
+- Cannot modify lists they don't own
 
 **Admin**
-- ✅ Всички права на Writer
-- ✅ Може да чете и променя всички списъци
-- ✅ Може да управлява всички потребители
-- ✅ Може да изтрива всякакви ресурси
+- All Writer permissions
+- Can read and modify all lists
+- Can manage all users
+- Can delete any resources
 
 #### List-Level Access Control
 
-Всеки списък може да има допълнителни колаборатори:
+Each list can have additional collaborators:
 
-- **List Owner** - пълен контрол
-- **List Reader** - само четене
-- **List Writer** - четене и писане
-- **List Admin** - пълен контрол като owner
+- **List Owner** - full control
+- **List Reader** - read only
+- **List Writer** - read and write
+- **List Admin** - full control like owner
 
 ### Security Best Practices
 
-1. **Environment Variables** - Sensitive данни се съхраняват като environment variables
-2. **HTTPS** - Production deployment използва TLS/SSL
-3. **JWT Expiration** - Short-lived access tokens с refresh mechanism
-4. **Password Hashing** - N/A (използваме OAuth)
-5. **Input Validation** - Валидация на всички input данни
-6. **SQL Injection Prevention** - Използване на prepared statements
-7. **CORS Configuration** - Правилно конфигуриран CORS
-8. **Rate Limiting** - Protection срещу brute force attacks (в production)
+1. **Environment Variables** - Sensitive data is stored as environment variables
+2. **HTTPS** - Production deployment uses TLS/SSL
+3. **JWT Expiration** - Short-lived access tokens with refresh mechanism
+4. **Password Hashing** - N/A (using OAuth)
+5. **Input Validation** - Validation of all input data
+6. **SQL Injection Prevention** - Using prepared statements
+7. **CORS Configuration** - Properly configured CORS
+8. **Rate Limiting** - Protection against brute force attacks (in production)
 
 ---
 
@@ -1541,7 +1541,7 @@ charts/todoapp/
 
 ### GitHub Actions Workflows
 
-Проектът използва GitHub Actions за CI/CD с следните jobs:
+The project uses GitHub Actions for CI/CD with the following jobs:
 
 #### 1. Markdown Lint
 ```yaml
@@ -1559,14 +1559,14 @@ jobs:
 ```
 
 #### 2. Lint and Format Check
-- Проверява код форматиране с `gofmt`
-- Проверява код quality с `golangci-lint`
-- Отделни jobs за REST и GraphQL services
+- Checks code formatting with `gofmt`
+- Checks code quality with `golangci-lint`
+- Separate jobs for REST and GraphQL services
 
 #### 3. Build
-- Компилира Go кода
-- Проверява за compilation errors
-- Кеширане на dependencies
+- Compiles Go code
+- Checks for compilation errors
+- Caches dependencies
 
 #### 4. SonarCloud Analysis
 - Static code analysis
@@ -1577,15 +1577,15 @@ jobs:
 #### 5. Snyk Security Scan
 - Dependency vulnerability scanning
 - License compliance check
-- Automatic PR creation за fixes
+- Automatic PR creation for fixes
 
 #### 6. Docker Build and Push
-- Build на Docker images
-- Tag-ване с commit SHA и branch name
-- Push в Docker Hub registry
+- Builds Docker images
+- Tags with commit SHA and branch name
+- Pushes to Docker Hub registry
 
 #### 7. Deploy to Kubernetes
-- Автоматично deployment на успешен build
+- Automatic deployment on successful build
 - Rolling update strategy
 - Health checks
 
@@ -1637,79 +1637,79 @@ jobs:
 
 ---
 
-## Използване
+## Usage
 
-### Стартиране на Приложението
+### Starting the Application
 
-**Метод 1: Автоматичен Setup**
+**Method 1: Automatic Setup**
 ```bash
 ./setup.sh
 ```
 
-**Метод 2: Ръчен Setup**
+**Method 2: Manual Setup**
 
-1. Създаване на cluster:
+1. Create cluster:
 ```bash
 k3d cluster create todoapp-cluster \
   --port 8000:80@loadbalancer \
   --wait
 ```
 
-2. Инсталиране на Istio:
+2. Install Istio:
 ```bash
 istioctl install --set profile=demo -y
 ```
 
-3. Създаване на namespace:
+3. Create namespace:
 ```bash
 kubectl create namespace todoapp-system
 kubectl label namespace todoapp-system istio-injection=enabled
 ```
 
-4. Deploy на приложението:
+4. Deploy the application:
 ```bash
 helm install todoapp ./charts/todoapp \
   --namespace todoapp-system \
   --set-file config=config.yaml
 ```
 
-### Използване на UI
+### Using the UI
 
 1. **Login**
-    - Отворете `http://localhost:8000`
-    - Кликнете "Login with GitHub"
-    - Authorize приложението
+    - Open `http://localhost:8000`
+    - Click "Login with GitHub"
+    - Authorize the application
 
-2. **Създаване на List**
-    - Click на "+" бутон
-    - Въведете име и описание
-    - Изберете visibility
-    - Добавете tags (optional)
+2. **Create a List**
+    - Click the "+" button
+    - Enter name and description
+    - Select visibility
+    - Add tags (optional)
 
-3. **Добавяне на Todos**
-    - Кликнете на списък
-    - Click на "Add Todo"
-    - Попълнете детайлите
-    - Set priority и due date
+3. **Add Todos**
+    - Click on a list
+    - Click "Add Todo"
+    - Fill in the details
+    - Set priority and due date
 
-4. **Споделяне на List**
-    - Отворете списък
-    - Click на "Share"
-    - Въведете email на потребител
-    - Изберете access level
+4. **Share a List**
+    - Open a list
+    - Click "Share"
+    - Enter user email
+    - Select access level
 
 5. **Managing Tasks**
-    - Check задача за да я маркирате като completed
-    - Edit за да промените детайли
-    - Assign на друг потребител
-    - Delete за да изтриете
+    - Check a task to mark it as completed
+    - Edit to change details
+    - Assign to another user
+    - Delete to remove
 
-### Използване на GraphQL Playground
+### Using GraphQL Playground
 
-1. Отворете `http://localhost:8000/graphql`
-2. Вижте schema в документацията
-3. Пишете queries и mutations
-4. Test различни scenarios
+1. Open `http://localhost:8000/graphql`
+2. View the schema in the documentation
+3. Write queries and mutations
+4. Test different scenarios
 
 Example:
 ```graphql
@@ -1725,15 +1725,15 @@ query MyLists {
 }
 ```
 
-### Използване на REST API
+### Using the REST API
 
-**С curl:**
+**With curl:**
 
 ```bash
 # Login
 curl http://localhost:8000/login/github
 
-# Get Lists (след login)
+# Get Lists (after login)
 curl -H "Authorization: Bearer <token>" \
      http://localhost:5000/lists
 
@@ -1752,7 +1752,7 @@ curl -X POST \
      http://localhost:5000/todos
 ```
 
-**С Postman:**
+**With Postman:**
 1. Import collection
 2. Set environment variables (token, base_url)
 3. Execute requests
@@ -1763,32 +1763,32 @@ curl -X POST \
 
 ### Common Issues
 
-#### 1. Pods не стартират
+#### 1. Pods Not Starting
 
-**Problem**: Pods висят в Pending status
+**Problem**: Pods stuck in Pending status
 
 **Solution**:
 ```bash
-# Проверка на pod status
+# Check pod status
 kubectl describe pod <pod-name> -n todoapp-system
 
-# Проверка на resources
+# Check resources
 kubectl top nodes
 
-# Проверка на events
+# Check events
 kubectl get events -n todoapp-system --sort-by='.lastTimestamp'
 ```
 
 #### 2. Database Connection Failed
 
-**Problem**: REST API не може да се свърже с PostgreSQL
+**Problem**: REST API cannot connect to PostgreSQL
 
 **Solution**:
 ```bash
-# Проверка на Postgres pod
+# Check Postgres pod
 kubectl logs -n todoapp-system -l app=todoapp-postgres
 
-# Проверка на service
+# Check service
 kubectl get svc -n todoapp-system todoapp-postgres
 
 # Test connection
@@ -1803,7 +1803,7 @@ kubectl run -it --rm --restart=Never postgres-test \
 **Problem**: GitHub OAuth redirect fails
 
 **Solution**:
-1. Проверете GitHub OAuth app settings
+1. Check GitHub OAuth app settings
 2. Verify redirect URL matches exactly
 3. Check config.yaml settings
 4. Restart REST pod
@@ -1818,7 +1818,7 @@ kubectl rollout restart deployment/todoapp-rest -n todoapp-system
 
 **Solution**:
 - Use refresh token endpoint
-- Login отново
+- Login again
 - Check token expiration time
 
 ```bash
@@ -1915,9 +1915,9 @@ docker system prune -a
 
 ---
 
-## Допълнителни Ресурси
+## Additional Resources
 
-### Документация
+### Documentation
 
 - [Go Documentation](https://golang.org/doc/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
@@ -1926,38 +1926,37 @@ docker system prune -a
 - [GraphQL Documentation](https://graphql.org/learn/)
 - [SAP UI5 Documentation](https://ui5.sap.com/)
 
-### Свързани Файлове
+### Related Files
 
-- `SETUP_GUIDE.md` - Детайлна инструкция за setup
-- `PIPELINE.md` - CI/CD pipeline документация
+- `SETUP_GUIDE.md` - Detailed setup instructions
+- `PIPELINE.md` - CI/CD pipeline documentation
 - `config.example.yaml` - Configuration template
 - `README.md` - Project overview
 
-### Контакти и Support
+### Contact and Support
 
-За въпроси и проблеми:
-- Отворете Issue в GitHub repository
-- Проверете existing issues за решения
-- Консултирайте се с документацията
+For questions and issues:
+- Open an Issue in the GitHub repository
+- Check existing issues for solutions
+- Consult the documentation
 
 ---
 
-## Заключение
+## Conclusion
 
-TodoList Project представлява пълноценно микросервизно приложение, което демонстрира съвременни best practices в областта на:
+The TodoList Project is a full-featured microservices application that demonstrates modern best practices in:
 
-- **Software Architecture** - Микросервизна архитектура с ясно разделение
+- **Software Architecture** - Microservices architecture with clear separation
 - **Security** - OAuth 2.0, JWT, RBAC
 - **DevOps** - Containerization, Kubernetes, CI/CD
-- **API Design** - RESTful и GraphQL APIs
-- **Database Design** - Normalization, индекси, миграции
+- **API Design** - RESTful and GraphQL APIs
+- **Database Design** - Normalization, indexes, migrations
 - **Frontend Development** - Modern UI framework
 
-Проектът е готов за production deployment с малки модификации за конкретната production среда (SSL certificates, external database, monitoring, logging, etc.).
+The project is ready for production deployment with minor modifications for the specific production environment (SSL certificates, external database, monitoring, logging, etc.).
 
 ---
 
-**Версия**: 1.0  
-**Последна актуализация**: Януари 2026  
-**Автор**: TodoList Project Team
-
+**Version**: 1.0  
+**Last Updated**: January 2026  
+**Author**: TodoList Project Team
