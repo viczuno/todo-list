@@ -3,280 +3,427 @@ package users_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/Victor-Uzunov/devops-project/todoservice/internal/users"
 	"github.com/Victor-Uzunov/devops-project/todoservice/internal/users/automock"
 	"github.com/Victor-Uzunov/devops-project/todoservice/pkg/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
-func TestServiceCreateUser(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_CreateUser(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-
-	modelInput := models.User{
-		Email:    "test",
-		GithubID: "github1",
-		Role:     "user",
-	}
-
-	model := models.User{
-		ID:        id,
-		Email:     "test",
-		GithubID:  "github1",
-		Role:      "user",
-		CreatedAt: mockTime,
-		UpdatedAt: mockTime,
-	}
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	testID := "test-uuid-123"
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.UserRepository
-		timeService   func() *automock.TimeService
-		input         models.User
-		expectedError error
+		name           string
+		input          models.User
+		setupMocks     func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService)
+		expectedID     string
+		expectedErrMsg string
 	}{
 		{
-			name: "Create new user",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				uuidService.EXPECT().Generate().Return(id).Once()
-				return uuidService
+			name: "success - creates user with all fields",
+			input: models.User{
+				Email:    "test@example.com",
+				GithubID: "github-123",
+				Role:     "admin",
 			},
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Create(ctx, model).Return(id, nil).Once()
-				return repo
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.MatchedBy(func(user models.User) bool {
+					return user.ID == testID &&
+						user.Email == "test@example.com" &&
+						user.GithubID == "github-123" &&
+						user.Role == "admin" &&
+						user.CreatedAt == mockTime &&
+						user.UpdatedAt == mockTime
+				})).Return(testID, nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Twice()
-				return timeService
-			},
-			input:         modelInput,
-			expectedError: nil,
+			expectedID:     testID,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo create fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				uuidService.EXPECT().Generate().Return(id).Once()
-				return uuidService
+			name: "success - creates user with minimal fields",
+			input: models.User{
+				Email: "minimal@example.com",
+				Role:  "reader",
 			},
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Create(ctx, model).Return("", err).Once()
-				return repo
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return(testID, nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Twice()
-				return timeService
+			expectedID:     testID,
+			expectedErrMsg: "",
+		},
+		{
+			name: "success - creates user with reader role",
+			input: models.User{
+				Email:    "reader@example.com",
+				GithubID: "github-456",
+				Role:     "reader",
 			},
-			input:         modelInput,
-			expectedError: err,
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return(testID, nil).Once()
+			},
+			expectedID:     testID,
+			expectedErrMsg: "",
+		},
+		{
+			name: "success - creates user with writer role",
+			input: models.User{
+				Email:    "writer@example.com",
+				GithubID: "github-789",
+				Role:     "writer",
+			},
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return(testID, nil).Once()
+			},
+			expectedID:     testID,
+			expectedErrMsg: "",
+		},
+		{
+			name: "error - repository create fails",
+			input: models.User{
+				Email:    "test@example.com",
+				GithubID: "github-123",
+				Role:     "admin",
+			},
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return("", errors.New("database connection failed")).Once()
+			},
+			expectedID:     "",
+			expectedErrMsg: "database connection failed",
+		},
+		{
+			name: "error - duplicate email constraint",
+			input: models.User{
+				Email: "duplicate@example.com",
+				Role:  "reader",
+			},
+			setupMocks: func(repo *automock.UserRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return("", errors.New("unique constraint violation")).Once()
+			},
+			expectedID:     "",
+			expectedErrMsg: "unique constraint violation",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, timeService, repo, uuidService)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			repo := automock.NewUserRepository(t)
+			uuidService := automock.NewUUIDService(t)
+			timeService := automock.NewTimeService(t)
+
+			tc.setupMocks(repo, uuidService, timeService)
 
 			svc := users.NewService(repo, uuidService, timeService)
-			_, err := svc.CreateUser(ctx, tt.input)
-			if tt.expectedError != nil {
+
+			// Act
+			id, err := svc.CreateUser(ctx, tc.input)
+
+			// Assert
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
+				assert.Empty(t, id)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedID, id)
 			}
 		})
 	}
 }
 
-func TestServiceGetUser(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_GetUser(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
+	testID := "test-uuid-123"
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
-	model := models.User{
-		ID:        id,
-		Email:     "test",
-		GithubID:  "github1",
-		Role:      "user",
-		CreatedAt: mockTime,
-		UpdatedAt: mockTime,
-	}
 	tests := []struct {
-		name          string
-		repo          func() *automock.UserRepository
-		expectedError error
+		name           string
+		userID         string
+		setupMocks     func(repo *automock.UserRepository)
+		expectedUser   models.User
+		expectedErrMsg string
 	}{
 		{
-			name: "Get user",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Get(ctx, id).Return(model, nil).Once()
-				return repo
+			name:   "success - returns user by id",
+			userID: testID,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{
+					ID:        testID,
+					Email:     "test@example.com",
+					GithubID:  "github-123",
+					Role:      "admin",
+					CreatedAt: mockTime,
+					UpdatedAt: mockTime,
+				}, nil).Once()
 			},
-			expectedError: nil,
+			expectedUser: models.User{
+				ID:        testID,
+				Email:     "test@example.com",
+				GithubID:  "github-123",
+				Role:      "admin",
+				CreatedAt: mockTime,
+				UpdatedAt: mockTime,
+			},
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo get fails",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Get(ctx, id).Return(models.User{}, err).Once()
-				return repo
+			name:   "success - returns user with reader role",
+			userID: testID,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{
+					ID:    testID,
+					Email: "reader@example.com",
+					Role:  "reader",
+				}, nil).Once()
 			},
-			expectedError: err,
+			expectedUser: models.User{
+				ID:    testID,
+				Email: "reader@example.com",
+				Role:  "reader",
+			},
+			expectedErrMsg: "",
+		},
+		{
+			name:   "error - user not found",
+			userID: "non-existent-id",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, "non-existent-id").Return(models.User{}, errors.New("user not found")).Once()
+			},
+			expectedUser:   models.User{},
+			expectedErrMsg: "user not found",
+		},
+		{
+			name:   "error - database connection error",
+			userID: testID,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{}, errors.New("database connection refused")).Once()
+			},
+			expectedUser:   models.User{},
+			expectedErrMsg: "database connection refused",
+		},
+		{
+			name:   "error - empty id",
+			userID: "",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, "").Return(models.User{}, errors.New("invalid id")).Once()
+			},
+			expectedUser:   models.User{},
+			expectedErrMsg: "invalid id",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			repo := automock.NewUserRepository(t)
+			tc.setupMocks(repo)
 
 			svc := users.NewService(repo, nil, nil)
-			_, err := svc.GetUser(ctx, id)
-			if tt.expectedError != nil {
+
+			// Act
+			user, err := svc.GetUser(ctx, tc.userID)
+
+			// Assert
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedUser, user)
 			}
 		})
 	}
 }
 
-func TestServiceUpdateUser(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_UpdateUser(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-
-	modelInput := models.User{
-		ID:       id,
-		Email:    "test",
-		GithubID: "github1",
-		Role:     "user",
-	}
-
-	model := models.User{
-		ID:        id,
-		Email:     "test",
-		GithubID:  "github1",
-		Role:      "user",
-		CreatedAt: mockTime,
-		UpdatedAt: mockTime,
-	}
+	testID := "test-uuid-123"
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name          string
-		repo          func() *automock.UserRepository
-		input         models.User
-		expectedError error
+		name           string
+		input          models.User
+		setupMocks     func(repo *automock.UserRepository)
+		expectedErrMsg string
 	}{
 		{
-			name:  "Update existing user",
-			input: modelInput,
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Get(ctx, id).Return(model, nil).Once()
-				repo.EXPECT().Update(ctx, model).Return(nil).Once()
-				return repo
+			name: "success - updates all fields",
+			input: models.User{
+				ID:       testID,
+				Email:    "updated@example.com",
+				GithubID: "github-updated",
+				Role:     "writer",
 			},
-			expectedError: nil,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{
+					ID:        testID,
+					Email:     "original@example.com",
+					CreatedAt: mockTime,
+				}, nil).Once()
+				repo.EXPECT().Update(ctx, mock.MatchedBy(func(user models.User) bool {
+					return user.ID == testID && user.Email == "updated@example.com"
+				})).Return(nil).Once()
+			},
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo get fails",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Get(ctx, id).Return(models.User{}, err).Once()
-				return repo
+			name: "success - updates only email",
+			input: models.User{
+				ID:    testID,
+				Email: "newemail@example.com",
 			},
-			input:         modelInput,
-			expectedError: err,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{ID: testID}, nil).Once()
+				repo.EXPECT().Update(ctx, mock.Anything).Return(nil).Once()
+			},
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo update fails",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Get(ctx, id).Return(model, nil).Once()
-				repo.EXPECT().Update(ctx, model).Return(err).Once()
-				return repo
+			name: "success - updates role to admin",
+			input: models.User{
+				ID:   testID,
+				Role: "admin",
 			},
-			input:         modelInput,
-			expectedError: err,
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{ID: testID, Role: "reader"}, nil).Once()
+				repo.EXPECT().Update(ctx, mock.Anything).Return(nil).Once()
+			},
+			expectedErrMsg: "",
+		},
+		{
+			name: "error - user not found",
+			input: models.User{
+				ID:    "non-existent-id",
+				Email: "updated@example.com",
+			},
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, "non-existent-id").Return(models.User{}, errors.New("user not found")).Once()
+			},
+			expectedErrMsg: "user not found",
+		},
+		{
+			name: "error - repository update fails",
+			input: models.User{
+				ID:    testID,
+				Email: "updated@example.com",
+			},
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.User{ID: testID}, nil).Once()
+				repo.EXPECT().Update(ctx, mock.Anything).Return(errors.New("update failed")).Once()
+			},
+			expectedErrMsg: "update failed",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			repo := automock.NewUserRepository(t)
+			tc.setupMocks(repo)
 
 			svc := users.NewService(repo, nil, nil)
-			err := svc.UpdateUser(ctx, tt.input)
 
-			if tt.expectedError != nil {
+			// Act
+			err := svc.UpdateUser(ctx, tc.input)
+
+			// Assert
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-func TestServiceDeleteUser(t *testing.T) {
-	id := "1"
-	err := errors.New("error")
+func TestService_DeleteUser(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name          string
-		repo          func() *automock.UserRepository
-		expectedError error
+		name           string
+		userID         string
+		setupMocks     func(repo *automock.UserRepository)
+		expectedErrMsg string
 	}{
 		{
-			name: "Delete existing user",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Delete(ctx, id).Return(nil).Once()
-				return repo
+			name:   "success - deletes existing user",
+			userID: "test-uuid-123",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Delete(ctx, "test-uuid-123").Return(nil).Once()
 			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo delete fails",
-			repo: func() *automock.UserRepository {
-				repo := &automock.UserRepository{}
-				repo.EXPECT().Delete(ctx, id).Return(err).Once()
-				return repo
+			name:   "error - user not found",
+			userID: "non-existent-id",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Delete(ctx, "non-existent-id").Return(errors.New("user not found")).Once()
 			},
-			expectedError: err,
+			expectedErrMsg: "user not found",
+		},
+		{
+			name:   "error - database error",
+			userID: "test-uuid-123",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Delete(ctx, "test-uuid-123").Return(errors.New("database error")).Once()
+			},
+			expectedErrMsg: "database error",
+		},
+		{
+			name:   "error - empty id",
+			userID: "",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Delete(ctx, "").Return(errors.New("invalid id")).Once()
+			},
+			expectedErrMsg: "invalid id",
+		},
+		{
+			name:   "error - foreign key constraint",
+			userID: "user-with-refs",
+			setupMocks: func(repo *automock.UserRepository) {
+				repo.EXPECT().Delete(ctx, "user-with-refs").Return(errors.New("foreign key constraint violation")).Once()
+			},
+			expectedErrMsg: "foreign key constraint violation",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			repo := automock.NewUserRepository(t)
+			tc.setupMocks(repo)
 
 			svc := users.NewService(repo, nil, nil)
-			err := svc.DeleteUser(ctx, id)
-			if tt.expectedError != nil {
+
+			// Act
+			err := svc.DeleteUser(ctx, tc.userID)
+
+			// Assert
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

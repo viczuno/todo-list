@@ -3,854 +3,683 @@ package lists_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/Victor-Uzunov/devops-project/todoservice/internal/lists"
 	"github.com/Victor-Uzunov/devops-project/todoservice/internal/lists/automock"
 	"github.com/Victor-Uzunov/devops-project/todoservice/pkg/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
-func TestServiceCreateList(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_CreateList(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-
-	modelInput := models.List{
-		Name:        "Test List",
-		Description: "Test description",
-		OwnerID:     "1",
-		SharedWith:  nil,
-	}
-
-	model := models.List{
-		ID:          id,
-		Name:        "Test List",
-		Description: "Test description",
-		OwnerID:     "1",
-		SharedWith:  nil,
-		CreatedAt:   mockTime,
-		UpdatedAt:   mockTime,
-	}
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
+	testID := "test-uuid-123"
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		input         models.List
-		expectedError error
+		name           string
+		input          models.List
+		setupMocks     func(repo *automock.ListRepository, uuid *automock.UUIDService, timeService *automock.TimeService)
+		expectedID     string
+		expectedErrMsg string
 	}{
 		{
-			name: "Create new list",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				uuidService.EXPECT().Generate().Return(id).Once()
-				return uuidService
+			name: "success - creates list with all fields",
+			input: models.List{
+				Name:        "Test List",
+				Description: "Test description",
+				OwnerID:     "owner-1",
+				SharedWith:  []string{"user-1", "user-2"},
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-
-				repo.EXPECT().Create(ctx, model).Return(id, nil).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.MatchedBy(func(list models.List) bool {
+					return list.ID == testID &&
+						list.Name == "Test List" &&
+						list.OwnerID == "owner-1" &&
+						list.CreatedAt == mockTime
+				})).Return(testID, nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Twice()
-				return timeService
-			},
-			input:         modelInput,
-			expectedError: nil,
+			expectedID:     testID,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo create fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				uuidService.EXPECT().Generate().Return(id).Once()
-				return uuidService
+			name: "success - creates list with minimal fields",
+			input: models.List{
+				Name:    "Minimal List",
+				OwnerID: "owner-1",
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Create(ctx, model).Return("", err).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return(testID, nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Twice()
-				return timeService
+			expectedID:     testID,
+			expectedErrMsg: "",
+		},
+		{
+			name: "error - repository create fails",
+			input: models.List{
+				Name:    "Test List",
+				OwnerID: "owner-1",
 			},
-			input:         modelInput,
-			expectedError: err,
+			setupMocks: func(repo *automock.ListRepository, uuid *automock.UUIDService, timeService *automock.TimeService) {
+				uuid.EXPECT().Generate().Return(testID).Once()
+				timeService.EXPECT().Now().Return(mockTime).Times(2)
+				repo.EXPECT().Create(ctx, mock.Anything).Return("", errors.New("database error")).Once()
+			},
+			expectedID:     "",
+			expectedErrMsg: "database error",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, timeService, repo, uuidService)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			uuidService := automock.NewUUIDService(t)
+			timeService := automock.NewTimeService(t)
+
+			tc.setupMocks(repo, uuidService, timeService)
 
 			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.CreateList(ctx, tt.input)
-			if tt.expectedError != nil {
+
+			id, err := svc.CreateList(ctx, tc.input)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedID, id)
 			}
 		})
 	}
 }
 
-func TestServiceGetList(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_GetList(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
+	testID := "test-uuid-123"
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
-	model := models.List{
-		ID:          id,
-		Name:        "Test List",
-		Description: "Test description",
-		OwnerID:     "1",
-		SharedWith:  nil,
-		CreatedAt:   mockTime,
-		UpdatedAt:   mockTime,
-	}
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedList   models.List
+		expectedErrMsg string
 	}{
 		{
-			name: "Get list",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns list by id",
+			listID: testID,
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.List{
+					ID:          testID,
+					Name:        "Test List",
+					Description: "Test description",
+					OwnerID:     "owner-1",
+					CreatedAt:   mockTime,
+					UpdatedAt:   mockTime,
+				}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Get(ctx, id).Return(model, nil).Once()
-				return repo
+			expectedList: models.List{
+				ID:          testID,
+				Name:        "Test List",
+				Description: "Test description",
+				OwnerID:     "owner-1",
+				CreatedAt:   mockTime,
+				UpdatedAt:   mockTime,
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo get fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - list not found",
+			listID: "non-existent",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Get(ctx, "non-existent").Return(models.List{}, errors.New("list not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Get(ctx, id).Return(models.List{}, err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedList:   models.List{},
+			expectedErrMsg: "list not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.GetList(ctx, id)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			list, err := svc.GetList(ctx, tc.listID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedList, list)
 			}
 		})
 	}
 }
 
-func TestServiceUpdateList(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_UpdateList(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-
-	modelInput := models.List{
-		ID:          id,
-		Name:        "Test List",
-		Description: "Test description",
-		OwnerID:     "1",
-		SharedWith:  nil,
-	}
-
-	model := models.List{
-		ID:          id,
-		Name:        "Test List",
-		Description: "Test description",
-		OwnerID:     "1",
-		SharedWith:  nil,
-		CreatedAt:   mockTime,
-		UpdatedAt:   mockTime,
-	}
+	testID := "test-uuid-123"
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		input         models.List
-		expectedError error
+		name           string
+		input          models.List
+		setupMocks     func(repo *automock.ListRepository)
+		expectedErrMsg string
 	}{
 		{
-			name:  "Update existing list",
-			input: modelInput,
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "success - updates list",
+			input: models.List{
+				ID:          testID,
+				Name:        "Updated List",
+				Description: "Updated description",
+				OwnerID:     "owner-1",
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Get(ctx, id).Return(model, nil).Once()
-				repo.EXPECT().Update(ctx, model).Return(nil).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Get(ctx, testID).Return(models.List{ID: testID, CreatedAt: mockTime}, nil).Once()
+				repo.EXPECT().Update(ctx, mock.Anything).Return(nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Once()
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo update fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "error - list not found",
+			input: models.List{
+				ID:   "non-existent",
+				Name: "Updated List",
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Get(ctx, id).Return(models.List{}, err).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Get(ctx, "non-existent").Return(models.List{}, errors.New("list not found")).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				timeService.EXPECT().Now().Return(mockTime).Once()
-				return timeService
-			},
-			input:         modelInput,
-			expectedError: err,
+			expectedErrMsg: "list not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo, uuidService)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			err := svc.UpdateList(ctx, tt.input)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
 
-			if tt.expectedError != nil {
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			err := svc.UpdateList(ctx, tc.input)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-func TestServiceDeleteList(t *testing.T) {
-	id := "1"
-	err := errors.New("error")
+func TestService_DeleteList(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedErrMsg string
 	}{
 		{
-			name: "Delete existing list",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - deletes existing list",
+			listID: "test-uuid-123",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Delete(ctx, "test-uuid-123").Return(nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Delete(ctx, id).Return(nil).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo delete fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - list not found",
+			listID: "non-existent",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().Delete(ctx, "non-existent").Return(errors.New("list not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().Delete(ctx, id).Return(err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedErrMsg: "list not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			timeService := tt.timeService()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			err := svc.DeleteList(ctx, id)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			err := svc.DeleteList(ctx, tc.listID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-func TestServiceListAllByUserID(t *testing.T) {
-	id := "1"
-	err := errors.New("error")
+func TestService_GetAllLists(t *testing.T) {
 	ctx := context.Background()
-
-	accessModel := models.Access{
-		ListID: "Test",
-		UserID: "1",
-	}
+	mockTime := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedLists  []models.List
+		expectedErrMsg string
 	}{
 		{
-			name: "Get all lists by user id",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "success - returns all lists",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetAll(ctx).Return([]models.List{
+					{ID: "list-1", Name: "List 1", OwnerID: "owner-1", CreatedAt: mockTime},
+					{ID: "list-2", Name: "List 2", OwnerID: "owner-2", CreatedAt: mockTime},
+				}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().ListAllByUserID(ctx, id).Return([]models.Access{accessModel}, nil).Once()
-				return repo
+			expectedLists: []models.List{
+				{ID: "list-1", Name: "List 1", OwnerID: "owner-1", CreatedAt: mockTime},
+				{ID: "list-2", Name: "List 2", OwnerID: "owner-2", CreatedAt: mockTime},
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when repo list all by userID fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "success - returns empty list",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetAll(ctx).Return([]models.List{}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().ListAllByUserID(ctx, id).Return([]models.Access{}, err).Once()
-				return repo
+			expectedLists:  []models.List{},
+			expectedErrMsg: "",
+		},
+		{
+			name: "error - database error",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetAll(ctx).Return(nil, errors.New("database error")).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedLists:  nil,
+			expectedErrMsg: "database error",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			timeService := tt.timeService()
-			defer mock.AssertExpectationsForObjects(t, repo, uuidService, timeService)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.ListAllByUserID(ctx, id)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.GetAllLists(ctx)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedLists, result)
 			}
 		})
 	}
 }
 
-func TestServiceGetAllLists(t *testing.T) {
-	id := "1"
-	mockTime := time.Time{}
+func TestService_ListAllByUserID(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
 
-	model := []models.List{
-		{
-			ID:          id,
-			Name:        "Test List",
-			Description: "Test description",
-			OwnerID:     "1",
-			SharedWith:  nil,
-			CreatedAt:   mockTime,
-			UpdatedAt:   mockTime,
-		},
-	}
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		userID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedAccess []models.Access
+		expectedErrMsg string
 	}{
 		{
-			name: "Get all lists",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns access for user",
+			userID: "user-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().ListAllByUserID(ctx, "user-1").Return([]models.Access{
+					{ListID: "list-1", UserID: "user-1", Role: "admin"},
+					{ListID: "list-2", UserID: "user-1", Role: "reader"},
+				}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetAll(ctx).Return(model, nil).Once()
-				return repo
+			expectedAccess: []models.Access{
+				{ListID: "list-1", UserID: "user-1", Role: "admin"},
+				{ListID: "list-2", UserID: "user-1", Role: "reader"},
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service get all lists fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns empty list",
+			userID: "user-2",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().ListAllByUserID(ctx, "user-2").Return([]models.Access{}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetAll(ctx).Return([]models.List{}, err).Once()
-				return repo
+			expectedAccess: []models.Access{},
+			expectedErrMsg: "",
+		},
+		{
+			name:   "error - database error",
+			userID: "user-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().ListAllByUserID(ctx, "user-1").Return(nil, errors.New("database error")).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedAccess: nil,
+			expectedErrMsg: "database error",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.GetAllLists(ctx)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.ListAllByUserID(ctx, tc.userID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedAccess, result)
 			}
 		})
 	}
 }
 
-func TestServiceGetUsersByListID(t *testing.T) {
-	id := "1"
+func TestService_GetUsersByListID(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-	modelAccess := []models.Access{
-		{
-			ListID: "1",
-			UserID: "user1",
-			Role:   "admin",
-		},
-		{
-			ListID: "1",
-			UserID: "user2",
-			Role:   "writer",
-		},
-		{
-			ListID: "1",
-			UserID: "user3",
-			Role:   "reader",
-		},
-	}
+
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedAccess []models.Access
+		expectedErrMsg string
 	}{
 		{
-			name: "Get users by listID",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns users for list",
+			listID: "list-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetUsersByListID(ctx, "list-1").Return([]models.Access{
+					{ListID: "list-1", UserID: "user-1", Role: "admin"},
+					{ListID: "list-1", UserID: "user-2", Role: "writer"},
+					{ListID: "list-1", UserID: "user-3", Role: "reader"},
+				}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetUsersByListID(ctx, id).Return(modelAccess, nil).Once()
-				return repo
+			expectedAccess: []models.Access{
+				{ListID: "list-1", UserID: "user-1", Role: "admin"},
+				{ListID: "list-1", UserID: "user-2", Role: "writer"},
+				{ListID: "list-1", UserID: "user-3", Role: "reader"},
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service get users by listID fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - list not found",
+			listID: "non-existent",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetUsersByListID(ctx, "non-existent").Return(nil, errors.New("list not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetUsersByListID(ctx, id).Return([]models.Access{}, err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedAccess: nil,
+			expectedErrMsg: "list not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.GetUsersByListID(ctx, id)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.GetUsersByListID(ctx, tc.listID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedAccess, result)
 			}
 		})
 	}
 }
 
-func TestServiceListOwnerIDs(t *testing.T) {
-	id := "1"
+func TestService_GetListOwnerID(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-	ownerID := "1"
+
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedOwner  string
+		expectedErrMsg string
 	}{
 		{
-			name: "Get list ownerID",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns owner id",
+			listID: "list-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetListOwnerID(ctx, "list-1").Return("owner-1", nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetListOwnerID(ctx, id).Return(ownerID, nil).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedOwner:  "owner-1",
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service get list ownerID fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - list not found",
+			listID: "non-existent",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetListOwnerID(ctx, "non-existent").Return("", errors.New("list not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetListOwnerID(ctx, id).Return("", err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedOwner:  "",
+			expectedErrMsg: "list not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.GetListOwnerID(ctx, id)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.GetListOwnerID(ctx, tc.listID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedOwner, result)
 			}
 		})
 	}
 }
 
-func TestServiceCreateAccess(t *testing.T) {
+func TestService_CreateAccess(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-
-	modelInput := models.Access{
-		ListID: "1",
-		UserID: "user1",
-		Role:   "reader",
-	}
-
-	model := models.Access{
-		ListID: "1",
-		UserID: "user1",
-		Role:   "reader",
-	}
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		input         models.Access
-		expectedError error
+		name           string
+		input          models.Access
+		setupMocks     func(repo *automock.ListRepository)
+		expectedAccess models.Access
+		expectedErrMsg string
 	}{
 		{
-			name: "Create new list_access",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "success - creates access",
+			input: models.Access{
+				ListID: "list-1",
+				UserID: "user-1",
+				Role:   "reader",
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-
-				repo.EXPECT().CreateAccess(ctx, model).Return(model, nil).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().CreateAccess(ctx, models.Access{
+					ListID: "list-1",
+					UserID: "user-1",
+					Role:   "reader",
+				}).Return(models.Access{
+					ListID: "list-1",
+					UserID: "user-1",
+					Role:   "reader",
+				}, nil).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
+			expectedAccess: models.Access{
+				ListID: "list-1",
+				UserID: "user-1",
+				Role:   "reader",
 			},
-			input:         modelInput,
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service create new access fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name: "error - database error",
+			input: models.Access{
+				ListID: "list-1",
+				UserID: "user-1",
+				Role:   "reader",
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().CreateAccess(ctx, model).Return(models.Access{}, err).Once()
-				return repo
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().CreateAccess(ctx, mock.Anything).Return(models.Access{}, errors.New("database error")).Once()
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			input:         modelInput,
-			expectedError: err,
+			expectedAccess: models.Access{},
+			expectedErrMsg: "database error",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, timeService, repo, uuidService)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.CreateAccess(ctx, tt.input)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.CreateAccess(ctx, tc.input)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedAccess, result)
 			}
 		})
 	}
 }
 
-func TestServiceGetAccess(t *testing.T) {
+func TestService_GetAccess(t *testing.T) {
 	ctx := context.Background()
-	err := errors.New("error")
-	listID := "listID"
-	userID := "userID"
 
-	model := models.Access{
-		ListID: "1",
-		UserID: "user1",
-		Role:   "reader",
-	}
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		userID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedAccess models.Access
+		expectedErrMsg string
 	}{
 		{
-			name: "Get list access",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - returns access",
+			listID: "list-1",
+			userID: "user-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetAccess(ctx, "list-1", "user-1").Return(models.Access{
+					ListID: "list-1",
+					UserID: "user-1",
+					Role:   "reader",
+				}, nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetAccess(ctx, listID, userID).Return(model, nil).Once()
-				return repo
+			expectedAccess: models.Access{
+				ListID: "list-1",
+				UserID: "user-1",
+				Role:   "reader",
 			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service get list access fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - access not found",
+			listID: "list-1",
+			userID: "user-2",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().GetAccess(ctx, "list-1", "user-2").Return(models.Access{}, errors.New("access not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().GetAccess(ctx, listID, userID).Return(models.Access{}, err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedAccess: models.Access{},
+			expectedErrMsg: "access not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			timeService := tt.timeService()
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			_, err := svc.GetAccess(ctx, listID, userID)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			result, err := svc.GetAccess(ctx, tc.listID, tc.userID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedAccess, result)
 			}
 		})
 	}
 }
 
-func TestServiceDeleteAccess(t *testing.T) {
-	err := errors.New("error")
+func TestService_DeleteAccess(t *testing.T) {
 	ctx := context.Background()
-	listID := "listID"
-	userID := "userID"
 
 	tests := []struct {
-		name          string
-		uuidService   func() *automock.UUIDService
-		repo          func() *automock.ListRepository
-		timeService   func() *automock.TimeService
-		expectedError error
+		name           string
+		listID         string
+		userID         string
+		setupMocks     func(repo *automock.ListRepository)
+		expectedErrMsg string
 	}{
 		{
-			name: "Delete existing list access",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "success - deletes access",
+			listID: "list-1",
+			userID: "user-1",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().DeleteAccess(ctx, "list-1", "user-1").Return(nil).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().DeleteAccess(ctx, listID, userID).Return(nil).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: nil,
+			expectedErrMsg: "",
 		},
 		{
-			name: "Error when service delete access fails",
-			uuidService: func() *automock.UUIDService {
-				uuidService := &automock.UUIDService{}
-				return uuidService
+			name:   "error - access not found",
+			listID: "list-1",
+			userID: "user-2",
+			setupMocks: func(repo *automock.ListRepository) {
+				repo.EXPECT().DeleteAccess(ctx, "list-1", "user-2").Return(errors.New("access not found")).Once()
 			},
-			repo: func() *automock.ListRepository {
-				repo := &automock.ListRepository{}
-				repo.EXPECT().DeleteAccess(ctx, listID, userID).Return(err).Once()
-				return repo
-			},
-			timeService: func() *automock.TimeService {
-				timeService := &automock.TimeService{}
-				return timeService
-			},
-			expectedError: err,
+			expectedErrMsg: "access not found",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uuidService := tt.uuidService()
-			repo := tt.repo()
-			timeService := tt.timeService()
-			defer mock.AssertExpectationsForObjects(t, repo)
 
-			svc := lists.NewService(repo, uuidService, timeService)
-			err := svc.DeleteAccess(ctx, listID, userID)
-			if tt.expectedError != nil {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := automock.NewListRepository(t)
+			tc.setupMocks(repo)
+
+			svc := lists.NewService(repo, nil, nil)
+
+			err := svc.DeleteAccess(ctx, tc.listID, tc.userID)
+
+			if tc.expectedErrMsg != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.Contains(t, err.Error(), tc.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
