@@ -7,7 +7,7 @@ Below is a detailed breakdown of the pipeline's functionality and configuration.
 
 ## Pipeline Triggers
 
-The pipeline is triggered on every `push` event to any branch.
+The pipeline runs on every pull request and on every push to `main`.
 You can adjust the trigger settings to target specific branches or events as needed.
 
 ## Pipeline Overview
@@ -27,7 +27,7 @@ You can adjust the trigger settings to target specific branches or events as nee
     - `lint-format-check-rest`: Lints and formats the REST service code.
     - `lint-format-check-graphql`: Lints and formats the GraphQL server code.
 - **Implementation**:
-    - Uses a reusable workflow (`reusable-checks.yml`) to run linting for each service.
+    - Uses a reusable workflow (`reusable-checks.yml`) for each service: `gofmt` check (generated files excluded), `go vet`, `golangci-lint` (only new issues are reported) and `go test`.
     - Each job receives the relevant service path (`todoservice` or `graphqlServer`) as input.
 
 ### 3. Build Jobs
