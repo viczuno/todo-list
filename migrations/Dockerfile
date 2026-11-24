@@ -1,11 +1,11 @@
-FROM golang:1.20-alpine AS builder
+FROM golang:1.27.3-alpine AS builder
 
 RUN apk add --no-cache bash curl
 
-RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.15.2/migrate.linux-amd64.tar.gz | tar xvz -C /usr/local/bin && \
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.20.1/migrate.linux-amd64.tar.gz | tar xvz -C /usr/local/bin && \
     chmod +x /usr/local/bin/migrate
 
-FROM alpine:3.18
+FROM alpine:3.23
 
 RUN apk add --no-cache bash
 

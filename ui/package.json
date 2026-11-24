@@ -9,8 +9,8 @@
     "build": "ui5 build"
   },
   "devDependencies": {
-    "@ui5/cli": "^4.0.12",
-    "ui5-tooling-modules": "^3.16.2"
+    "@ui5/cli": "^4.1.0",
+    "ui5-tooling-modules": "^3.43.2"
   },
   "dependencies": {
     "jwt-decode": "^4.0.0"
