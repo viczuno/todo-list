@@ -1,4 +1,4 @@
-FROM node:20-bullseye AS build
+FROM node:26-bookworm AS build
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 
-FROM nginx:1.23-alpine
+FROM nginx:1.29-alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 

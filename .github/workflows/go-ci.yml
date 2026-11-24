@@ -42,7 +42,7 @@ jobs:
 #      contents: read
 #    steps:
 #      - name: Checkout code
-#        uses: actions/checkout@v3
+#        uses: actions/checkout@v7
 #        with:
 #          fetch-depth: 0
 #          token: ${{ secrets.GITHUB_TOKEN }}
@@ -68,13 +68,13 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.22.5'
+          go-version: '1.27.3'
       - name: Install dependencies
         run: |
           cd todoservice
@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Create .env file for REST service
         run: |
           cd todoservice
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Create .env file for GraphQL service
         run: |
           cd graphqlServer
@@ -150,7 +150,7 @@ jobs:
   #   if: github.ref == 'refs/heads/main'
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v7
 
   #     - name: Set up Docker for the job
   #       uses: docker/setup-buildx-action@v2
@@ -196,7 +196,7 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v7
 
   #     - name: Install k3d
   #       run: |

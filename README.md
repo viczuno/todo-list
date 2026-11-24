@@ -166,7 +166,7 @@ The project follows a microservices architectural pattern with clear separation 
 ### Backend
 
 #### REST API Service
-- **Language**: Go 1.21+
+- **Language**: Go 1.27+
 - **Web Framework**: Gin
 - **Database Driver**: pgx (PostgreSQL)
 - **Authentication**: OAuth2, JWT
@@ -174,7 +174,7 @@ The project follows a microservices architectural pattern with clear separation 
 - **Logging**: Structured logging
 
 #### GraphQL Service
-- **Language**: Go 1.21+
+- **Language**: Go 1.27+
 - **GraphQL Framework**: gqlgen
 - **HTTP Client**: Standard Go http client
 - **Schema**: GraphQL SDL (Schema Definition Language)
